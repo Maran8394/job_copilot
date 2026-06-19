@@ -1,0 +1,769 @@
+{
+  "full_name": "Maran Thanishlash",
+  "first_name": "Maran",
+  "last_name": "Thanishlash",
+  "email": "maran8394@gmail.com",
+  "phone": "+60172880821",
+  "location": "Petaling jaya, Malaysia",
+  "linkedin_url": "linkedin.com/in/maran-ai-developer",
+  "github_url": "github.com/Maran8394",
+  "portfolio_url": "github.com/Maran8394",
+  "total_experience_years": null,
+  "current_title": "ML Engineer",
+  "current_company": "DoublelogicAI SDN, BHD",
+  "current_salary": 60000,
+  "expected_salary": 90000,
+  "notice_period_days": null,
+  "work_authorized": true,
+  "requires_sponsorship": true,
+  "willing_to_relocate": true,
+  "education": "B.Tech Information Technology",
+  "graduation_year": 2021,
+  "skills": [],
+  "skill_years": {
+    "python": 4,
+    "flutter": 2,
+    "dart": 2,
+    "sql": 3,
+    "docker": 3,
+    "aws": 2,
+    "machine_learning": 3,
+    "deep_learning": 3
+  },
+  "answers": {},
+  "pending_applications": {
+    "2": {
+      "job_title": "Mid-Level Software Developer (Python)",
+      "company": "HFM",
+      "fillable_fields": [],
+      "missing_fields": [],
+      "unknown_fields": [
+        "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+        "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+        "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+        "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+        "Yes",
+        "Yes"
+      ],
+      "autofill_confidence": 0.0,
+      "field_count": 14,
+      "fields": [
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 0,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600810-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "2",
+            "labels": [
+              "How many years of work experience do you have with JavaScript?"
+            ],
+            "options": [],
+            "parent_text": "How many years of work experience do you have with JavaScript?",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 0,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 1,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600834-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "3",
+            "labels": [
+              "How many years of work experience do you have with Django?"
+            ],
+            "options": [],
+            "parent_text": "How many years of work experience do you have with Django?",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 1,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 2,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600826-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "4",
+            "labels": [
+              "How many years of work experience do you have with Python (Programming Language)?"
+            ],
+            "options": [],
+            "parent_text": "How many years of work experience do you have with Python (Programming Language)?",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 2,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 3,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "radio",
+            "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+            "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)-0",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "Yes",
+            "labels": [
+              "Yes",
+              "Are you comfortable commuting to this job's location?\nAre you comfortable commuting to this job's location?\n \nRequired"
+            ],
+            "options": [],
+            "parent_text": "Yes",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 3,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 4,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "radio",
+            "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+            "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)-1",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "No",
+            "labels": [
+              "No",
+              "Are you comfortable commuting to this job's location?\nAre you comfortable commuting to this job's location?\n \nRequired"
+            ],
+            "options": [],
+            "parent_text": "No",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 4,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 5,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "radio",
+            "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+            "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)-0",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "Yes",
+            "labels": [
+              "Yes",
+              "Will you now or in the future require sponsorship for employment visa status?\nWill you now or in the future require sponsorship for employment visa status?\n \nRequired"
+            ],
+            "options": [],
+            "parent_text": "Yes",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 5,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 6,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "radio",
+            "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+            "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)-1",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "No",
+            "labels": [
+              "No",
+              "Will you now or in the future require sponsorship for employment visa status?\nWill you now or in the future require sponsorship for employment visa status?\n \nRequired"
+            ],
+            "options": [],
+            "parent_text": "No",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 6,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 7,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600874-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "",
+            "labels": [
+              "If you need dependent visa for spouse/kids in Malaysia, how many DP visas needed?"
+            ],
+            "options": [],
+            "parent_text": "If you need dependent visa for spouse/kids in Malaysia, how many DP visas needed?",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 7,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 8,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600866-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "",
+            "labels": [
+              "What’s your Current or last drawn salary?"
+            ],
+            "options": [],
+            "parent_text": "What’s your Current or last drawn salary?",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 8,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 9,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600858-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "",
+            "labels": [
+              "What’s your expected monthly salary in MYR gross? (Pls note: In Malaysia, for expatriate, the income tax is 30% in1st half year, then down to 12%, We only provide 12months of base pay, no bonus setup"
+            ],
+            "options": [],
+            "parent_text": "What’s your expected monthly salary in MYR gross? (Pls note: In Malaysia, for expatriate, the income tax is 30% in1st half year, then down to 12%, We only provide 12months of base pay, no bonus setup",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 9,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 10,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600850-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "",
+            "labels": [
+              "How many days of notice period do you have?"
+            ],
+            "options": [],
+            "parent_text": "How many days of notice period do you have?",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 10,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": true,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 11,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "text",
+            "name": "",
+            "id": "single-line-text-form-component-formElement-urn-li-jobs-applyformcommon-easyApplyFormElement-4411867851-31929600842-numeric",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": true,
+            "disabled": false,
+            "checked": false,
+            "value": "",
+            "labels": [
+              "If you are serving notice period, pls share your last working day as YYYYMMDD, for example 20260315; If not serving notice, pls input \"0\""
+            ],
+            "options": [],
+            "parent_text": "If you are serving notice period, pls share your last working day as YYYYMMDD, for example 20260315; If not serving notice, pls input \"0\"",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 11,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "Yes",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [
+            "Yes",
+            "No"
+          ],
+          "required": true,
+          "selector": "input[type='radio']",
+          "index": 0,
+          "dom_type": "radio",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "selector": "input[type='radio']",
+            "index": 0,
+            "dom_type": "radio",
+            "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+            "label": "Yes",
+            "placeholder": "",
+            "required": true,
+            "options": [
+              "Yes",
+              "No"
+            ],
+            "raw_items": [
+              {
+                "tag_name": "input",
+                "type": "radio",
+                "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+                "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)-0",
+                "placeholder": "",
+                "autocomplete": "",
+                "title": "",
+                "aria_label": "",
+                "required": true,
+                "disabled": false,
+                "checked": false,
+                "value": "Yes",
+                "labels": [
+                  "Yes",
+                  "Are you comfortable commuting to this job's location?\nAre you comfortable commuting to this job's location?\n \nRequired"
+                ],
+                "options": [],
+                "parent_text": "Yes"
+              },
+              {
+                "tag_name": "input",
+                "type": "radio",
+                "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)",
+                "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600802,multipleChoice)-1",
+                "placeholder": "",
+                "autocomplete": "",
+                "title": "",
+                "aria_label": "",
+                "required": true,
+                "disabled": false,
+                "checked": false,
+                "value": "No",
+                "labels": [
+                  "No",
+                  "Are you comfortable commuting to this job's location?\nAre you comfortable commuting to this job's location?\n \nRequired"
+                ],
+                "options": [],
+                "parent_text": "No"
+              }
+            ]
+          }
+        },
+        {
+          "label": "Yes",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [
+            "Yes",
+            "No"
+          ],
+          "required": true,
+          "selector": "input[type='radio']",
+          "index": 2,
+          "dom_type": "radio",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "selector": "input[type='radio']",
+            "index": 2,
+            "dom_type": "radio",
+            "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+            "label": "Yes",
+            "placeholder": "",
+            "required": true,
+            "options": [
+              "Yes",
+              "No"
+            ],
+            "raw_items": [
+              {
+                "tag_name": "input",
+                "type": "radio",
+                "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+                "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)-0",
+                "placeholder": "",
+                "autocomplete": "",
+                "title": "",
+                "aria_label": "",
+                "required": true,
+                "disabled": false,
+                "checked": false,
+                "value": "Yes",
+                "labels": [
+                  "Yes",
+                  "Will you now or in the future require sponsorship for employment visa status?\nWill you now or in the future require sponsorship for employment visa status?\n \nRequired"
+                ],
+                "options": [],
+                "parent_text": "Yes"
+              },
+              {
+                "tag_name": "input",
+                "type": "radio",
+                "name": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)",
+                "id": "urn:li:fsd_formElement:urn:li:jobs_applyformcommon_easyApplyFormElement:(4411867851,31929600818,multipleChoice)-1",
+                "placeholder": "",
+                "autocomplete": "",
+                "title": "",
+                "aria_label": "",
+                "required": true,
+                "disabled": false,
+                "checked": false,
+                "value": "No",
+                "labels": [
+                  "No",
+                  "Will you now or in the future require sponsorship for employment visa status?\nWill you now or in the future require sponsorship for employment visa status?\n \nRequired"
+                ],
+                "options": [],
+                "parent_text": "No"
+              }
+            ]
+          }
+        }
+      ],
+      "pending_answers": 1,
+      "scope_selector": ".jobs-easy-apply-modal",
+      "job_id": "2"
+    },
+    "10": {
+      "job_title": "Software Engineer – Python | Remote",
+      "company": "Crossing Hurdles",
+      "fillable_fields": [],
+      "missing_fields": [],
+      "unknown_fields": [
+        {
+          "label": "",
+          "display_label": "Follow Great Eastern to stay up to date with their page.",
+          "field_type": "unknown",
+          "options": []
+        },
+        {
+          "label": "Follow Great Eastern to stay up to date with their page.",
+          "display_label": "Follow Great Eastern to stay up to date with their page.",
+          "field_type": "unknown",
+          "options": [
+            "Follow Great Eastern to stay up to date with their page."
+          ]
+        }
+      ],
+      "autofill_confidence": 0.0,
+      "field_count": 2,
+      "fields": [
+        {
+          "label": "",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [],
+          "required": false,
+          "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+          "index": 0,
+          "dom_type": "input",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "tag_name": "input",
+            "type": "checkbox",
+            "name": "",
+            "id": "follow-company-checkbox",
+            "placeholder": "",
+            "autocomplete": "",
+            "title": "",
+            "aria_label": "",
+            "required": false,
+            "disabled": false,
+            "checked": true,
+            "value": "on",
+            "labels": [
+              "Follow Great Eastern to stay up to date with their page."
+            ],
+            "options": [],
+            "parent_text": "Follow Great Eastern to stay up to date with their page.",
+            "question_text": "Follow Great Eastern to stay up to date with their page.",
+            "selector": "input:not([type='hidden']):not([type='button']):not([type='submit']):not([type='reset'])",
+            "index": 0,
+            "dom_type": "input"
+          }
+        },
+        {
+          "label": "Follow Great Eastern to stay up to date with their page.",
+          "placeholder": "",
+          "field_type": "unknown",
+          "available_options": [
+            "Follow Great Eastern to stay up to date with their page."
+          ],
+          "required": false,
+          "selector": "input[type='checkbox']",
+          "index": 0,
+          "dom_type": "checkbox",
+          "profile_key": null,
+          "confidence": 0.0,
+          "value": null,
+          "status": "unknown",
+          "reason": "no match",
+          "raw": {
+            "selector": "input[type='checkbox']",
+            "index": 0,
+            "dom_type": "checkbox",
+            "name": "",
+            "label": "Follow Great Eastern to stay up to date with their page.",
+            "placeholder": "",
+            "required": false,
+            "options": [
+              "Follow Great Eastern to stay up to date with their page."
+            ],
+            "raw_items": [
+              {
+                "tag_name": "input",
+                "type": "checkbox",
+                "name": "",
+                "id": "follow-company-checkbox",
+                "placeholder": "",
+                "autocomplete": "",
+                "title": "",
+                "aria_label": "",
+                "required": false,
+                "disabled": false,
+                "checked": true,
+                "value": "on",
+                "labels": [
+                  "Follow Great Eastern to stay up to date with their page."
+                ],
+                "options": [],
+                "parent_text": "Follow Great Eastern to stay up to date with their page.",
+                "question_text": "Follow Great Eastern to stay up to date with their page."
+              }
+            ]
+          }
+        }
+      ],
+      "pending_answers": 2,
+      "scope_selector": ".jobs-easy-apply-modal",
+      "job_id": "10"
+    }
+  }
+}

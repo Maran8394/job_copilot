@@ -23,6 +23,65 @@ def _page_locator(page, scope_selector, selector):
     return page.locator(selector)
 
 
+def detect_apply_type(page):
+    """Detect whether the opened LinkedIn job page exposes Easy Apply."""
+    selectors = [
+        "button.jobs-apply-button",
+        "button[aria-label*='Easy Apply']",
+        "button[title*='Easy Apply']",
+        "button:has-text('Easy Apply')",
+        "[role='button']:has-text('Easy Apply')",
+    ]
+
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            count = locator.count()
+            if count == 0:
+                continue
+
+            for index in range(min(count, 3)):
+                item = locator.nth(index)
+                try:
+                    text_parts = [
+                        item.inner_text(timeout=1000) or "",
+                        item.get_attribute("aria-label") or "",
+                        item.get_attribute("title") or "",
+                        item.get_attribute("data-control-name") or "",
+                    ]
+                    if "easy apply" in " ".join(text_parts).lower():
+                        return "Easy Apply"
+                except Exception:
+                    continue
+        except Exception:
+            continue
+
+    return "External"
+
+
+def find_easy_apply_button(page):
+    """Return the button that opens Easy Apply, if visible."""
+    selectors = [
+        "button.jobs-apply-button:has-text('Easy Apply')",
+        "button[aria-label*='Easy Apply']",
+        "button[title*='Easy Apply']",
+        "button:has-text('Easy Apply')",
+        "[role='button']:has-text('Easy Apply')",
+    ]
+
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            count = locator.count()
+            for idx in range(count):
+                candidate = locator.nth(idx)
+                if candidate.is_visible():
+                    return candidate
+        except Exception:
+            continue
+    return None
+
+
 def _safe_fill(locator, value):
     try:
         locator.fill(str(value))
@@ -55,6 +114,16 @@ def _select_option(locator, field, value):
             choices.append(text_value)
         if text_value.lower() in {"yes", "no"}:
             choices.append(text_value.title())
+        
+        # Look for matching country code inside options
+        import re
+        phone_match = re.match(r"^\+(\d+)", text_value)
+        if phone_match:
+            prefix = phone_match.group(0)          # e.g., "+60"
+            prefix_digits = phone_match.group(1)   # e.g., "60"
+            for opt in option_labels:
+                if prefix in opt or f"+ {prefix_digits}" in opt or f"({prefix_digits})" in opt:
+                    choices.append(opt)
     else:
         choices.append(text_value)
 
@@ -135,6 +204,20 @@ def _autofill_field(page, field, profile):
 
     try:
         if dom_type in {"input", "textarea"} and field_type not in {"sponsorship", "work_authorization", "relocation"}:
+            # Strip country prefix from phone inputs if a country select is present in the form scope
+            if field_type == "phone" and isinstance(value, str) and value.startswith("+"):
+                try:
+                    scope_selector = field.get("scope_selector", "body")
+                    has_country_select = page.locator(f"{scope_selector} select").count() > 0
+                    if has_country_select:
+                        import re
+                        m = re.match(r"^\+(\d+)", value)
+                        if m:
+                            prefix = m.group(0)
+                            value = value[len(prefix):].lstrip()
+                except Exception:
+                    pass
+
             if _safe_fill(locator, value):
                 print(f"[AUTOFILL] Filled value: {value}")
                 return True, "filled"
@@ -196,21 +279,25 @@ def _apply_fields(page, summary):
     return autofilled
 
 
-def _find_button(page, texts):
+def _find_button(page, texts, scope_selector="body"):
     selectors = []
+    prefix = f"{scope_selector} " if scope_selector and scope_selector != "body" else ""
     for text in texts:
         selectors.extend(
             [
-                f"button:has-text('{text}')",
-                f"[role='button']:has-text('{text}')",
+                f"{prefix}button:has-text('{text}')",
+                f"{prefix}[role='button']:has-text('{text}')",
             ]
         )
 
     for selector in selectors:
         try:
             locator = page.locator(selector)
-            if locator.count() > 0 and locator.first.is_visible():
-                return locator.first
+            count = locator.count()
+            for idx in range(count):
+                candidate = locator.nth(idx)
+                if candidate.is_visible():
+                    return candidate
         except Exception:
             continue
     return None
@@ -223,15 +310,22 @@ def handle_easy_apply(page, job_data, job_id=None):
     job_key = job_id if job_id is not None else job_data.get("id")
 
     try:
-        apply_btn = page.locator("button.jobs-apply-button:has-text('Easy Apply')")
-        if apply_btn.count() == 0:
+        if detect_apply_type(page) != "Easy Apply":
             return {
                 "success": False,
                 "status": "unsupported",
                 "message": "Easy Apply button not found",
             }
 
-        apply_btn.first.click()
+        apply_btn = find_easy_apply_button(page)
+        if apply_btn is None:
+            return {
+                "success": False,
+                "status": "unsupported",
+                "message": "Easy Apply button not found",
+            }
+
+        apply_btn.click()
         human_like_delay(1500, 3000)
 
         max_steps = 8
@@ -261,6 +355,7 @@ def handle_easy_apply(page, job_data, job_id=None):
             post_fill_summary = analyzer.analyze(page, job_data)
             post_fill_summary["scope_selector"] = analyzer.find_scope_selector(page)
             last_summary = post_fill_summary
+            scope_selector = post_fill_summary["scope_selector"]
             if job_key is not None:
                 profile.store_pending_application(job_key, post_fill_summary)
 
@@ -273,18 +368,32 @@ def handle_easy_apply(page, job_data, job_id=None):
                     "summary": post_fill_summary,
                 }
 
-            submit_btn = _find_button(page, ["Submit application", "Send application"])
+            submit_btn = _find_button(page, ["Submit application", "Send application", "Submit"], scope_selector)
             if submit_btn is not None:
-                send_form_analysis(job_key or job_data.get("title", "job"), post_fill_summary)
+                try:
+                    submit_btn.click()
+                    human_like_delay(2000, 4000)
+                    
+                    # Look for a 'Done' or 'Dismiss' button on the success modal
+                    done_btn = _find_button(page, ["Done", "Dismiss", "Return to job search"])
+                    if done_btn is not None:
+                        done_btn.click()
+                        human_like_delay(1000, 2000)
+                except Exception as e:
+                    print(f"[FORM] Error clicking submit or done: {e}")
+
+                # Do not send form analysis as it's fully submitted, unless you still want to log it
+                # send_form_analysis(job_key or job_data.get("title", "job"), post_fill_summary)
+                
                 return {
                     "success": True,
-                    "status": "ready_for_review",
-                    "message": "Form prepared for manual submission",
+                    "status": "submitted",
+                    "message": "Application submitted automatically",
                     "summary": post_fill_summary,
                 }
 
-            review_btn = _find_button(page, ["Review"])
-            next_btn = _find_button(page, ["Next"])
+            review_btn = _find_button(page, ["Review"], scope_selector)
+            next_btn = _find_button(page, ["Next"], scope_selector)
 
             if review_btn is not None:
                 review_btn.click()
@@ -342,13 +451,6 @@ def apply_to_job(job_data, job_id=None):
             "message": "No job data provided",
         }
 
-    if job_data.get("apply_type") != "Easy Apply":
-        return {
-            "success": False,
-            "status": "unsupported",
-            "message": "Not an Easy Apply job",
-        }
-
     with sync_playwright() as p:
         browser = None
         try:
@@ -370,7 +472,20 @@ def apply_to_job(job_data, job_id=None):
                     launch_args["executable_path"] = path
                     break
 
-            browser = p.chromium.launch_persistent_context(**launch_args)
+            max_retries = 6
+            for attempt in range(max_retries):
+                try:
+                    browser = p.chromium.launch_persistent_context(**launch_args)
+                    break
+                except Exception as e:
+                    error_str = str(e)
+                    if "SingletonLock" in error_str or "closed" in error_str.lower():
+                        if attempt < max_retries - 1:
+                            print(f"  [FORM] Browser profile locked (likely by search). Retrying in 30s... ({attempt+1}/{max_retries})")
+                            time.sleep(30)
+                            continue
+                    raise e
+
             page = browser.new_page()
 
             page.add_init_script(
@@ -380,7 +495,11 @@ def apply_to_job(job_data, job_id=None):
             )
 
             print(f"  Navigating to job: {job_data['url']}")
-            page.goto(job_data["url"], wait_until="networkidle", timeout=30000)
+            try:
+                page.goto(job_data["url"], wait_until="domcontentloaded", timeout=45000)
+            except PlaywrightTimeout:
+                # LinkedIn often keeps background requests open; continue if the DOM is present.
+                print("  [FORM] Page load timed out, continuing with the current DOM")
             human_like_delay(3000, 5000)
 
             result = handle_easy_apply(page, job_data, job_id=job_id)

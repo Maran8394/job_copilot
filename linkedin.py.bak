@@ -431,7 +431,6 @@ def search_jobs(keywords="AI Engineer", location="Kuala Lumpur, Malaysia", max_j
         existing = existing_jobs
 
         sent_count = 0
-        new_job_count = 0
         for rank, job in enumerate(top_jobs, 1):
             # Skip duplicates
             job_key = get_linkedin_job_key(job)
@@ -450,8 +449,8 @@ def search_jobs(keywords="AI Engineer", location="Kuala Lumpur, Malaysia", max_j
             analysis["composite_score"] = composite
 
             # Assign a unique, persistent ID to the job
-            new_job_count += 1
-            job_id = max_id + new_job_count
+            max_id += 1
+            job_id = max_id
             job["id"] = job_id
 
             send_job(

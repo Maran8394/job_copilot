@@ -5,6 +5,30 @@ from candidate_profile import load_candidate_profile
 from field_mapper import get_value, map_field, validate_value, normalize_text
 
 
+ENV_VAR_MAPPING = {
+    "full_name": "FULL_NAME",
+    "first_name": "FIRST_NAME",
+    "last_name": "LAST_NAME",
+    "email": "EMAIL",
+    "phone": "PHONE",
+    "location": "LOCATION",
+    "linkedin_url": "LINKEDIN_URL",
+    "github_url": "GITHUB_URL",
+    "portfolio_url": "PORTFOLIO_URL",
+    "total_experience_years": "TOTAL_EXPERIENCE_YEARS",
+    "current_title": "CURRENT_TITLE",
+    "current_company": "CURRENT_COMPANY",
+    "current_salary": "CURRENT_SALARY",
+    "expected_salary": "EXPECTED_SALARY",
+    "notice_period_days": "NOTICE_PERIOD_DAYS",
+    "work_authorized": "WORK_AUTHORIZED",
+    "requires_sponsorship": "REQUIRES_SPONSORSHIP",
+    "willing_to_relocate": "WILLING_TO_RELOCATE",
+    "education": "EDUCATION",
+    "graduation_year": "GRADUATION_YEAR",
+}
+
+
 JS_FIELD_METADATA = r"""
 el => {
   const textOf = (node) => {
@@ -12,6 +36,15 @@ el => {
     if (node.innerText) return node.innerText.trim();
     if (node.textContent) return node.textContent.trim();
     return '';
+  };
+
+  const stripNoise = (value) => {
+    return (value || '')
+      .replace(/urn:li:[^\s,;]+/g, '')
+      .replace(/\bYes\b/g, '')
+      .replace(/\bNo\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   };
 
   const collectLabels = () => {
@@ -66,7 +99,7 @@ el => {
   }
 
   const parent = el.closest('fieldset, .jobs-easy-apply-form-element, .artdeco-form-group, li, div');
-  const parentText = textOf(parent).slice(0, 500);
+  const parentText = stripNoise(textOf(parent)).slice(0, 500);
 
   return {
     tag_name: (el.tagName || '').toLowerCase(),
@@ -83,7 +116,8 @@ el => {
     value: el.value || '',
     labels: collectLabels(),
     options: optionItems,
-    parent_text: parentText
+    parent_text: parentText,
+    question_text: parentText
   };
 }
 """
@@ -133,6 +167,54 @@ class EasyApplyAnalyzer:
 
     def __init__(self, confidence_threshold: float = 0.82):
         self.confidence_threshold = confidence_threshold
+
+    def _normalize_options(self, options) -> List[str]:
+        normalized: List[str] = []
+        for option in options or []:
+            if isinstance(option, dict):
+                text = option.get("label") or option.get("value") or option.get("text") or ""
+                if text:
+                    normalized.append(str(text).strip())
+            elif option is not None:
+                text = str(option).strip()
+                if text:
+                    normalized.append(text)
+        return normalized
+
+    def _is_internal_label(self, value: str) -> bool:
+        text = str(value or "").strip().lower()
+        return not text or text.startswith("urn:") or "multiplechoice" in text
+
+    def _friendly_label(self, label: str, field: Dict[str, Any], options: List[str]) -> str:
+        """Convert LinkedIn internal labels into user-friendly text."""
+        raw_label = str(label or "").strip()
+        question_text = str(field.get("question_text") or field.get("parent_text") or "").strip()
+        dom_type = str(field.get("dom_type") or "").lower()
+        field_type = str(field.get("field_type") or "").lower()
+
+        if not self._is_internal_label(raw_label):
+            if raw_label in {"Yes", "No"} and dom_type in {"radio", "checkbox"}:
+                if question_text and not self._is_internal_label(question_text):
+                    return question_text
+                if options:
+                    return f"Multiple choice question ({', '.join(options[:3])})"
+            return raw_label
+
+        if question_text and not self._is_internal_label(question_text):
+            if raw_label in {"Yes", "No"} and dom_type in {"radio", "checkbox"}:
+                return question_text
+            return question_text
+
+        if options:
+            readable_options = ", ".join(options[:4])
+            if field_type in {"radio", "checkbox"}:
+                return f"Multiple choice question ({readable_options})"
+            return f"Question ({readable_options})"
+
+        if field_type in {"radio", "checkbox"}:
+            return "Multiple choice question"
+
+        return "Unlabeled field"
 
     def find_scope_selector(self, page) -> str:
         for selector in self.ROOT_SELECTORS:
@@ -212,7 +294,7 @@ class EasyApplyAnalyzer:
             if option_text:
                 group["options"].append(option_text)
             if not group["label"]:
-                group["label"] = metadata.get("parent_text") or option_text
+                group["label"] = metadata.get("question_text") or metadata.get("parent_text") or option_text
             group["raw_items"].append(metadata)
             group["required"] = group["required"] or bool(metadata.get("required"))
 
@@ -275,11 +357,12 @@ class EasyApplyAnalyzer:
         confidence_scores: List[float] = []
 
         for field in fields:
+            options = self._normalize_options(field.get("options"))
             label = field.get("label") or field.get("name") or field.get("aria_label") or ""
             placeholder = field.get("placeholder") or ""
             dom_type = field.get("dom_type") or field.get("type") or ""
-            options = field.get("options") or []
             stored_answer = profile.get_answer_for_label(label) if label else None
+            display_label = self._friendly_label(label, field, options)
 
             mapping = map_field(label, placeholder=placeholder, field_type=dom_type, options=options)
             print(
@@ -300,6 +383,7 @@ class EasyApplyAnalyzer:
                 fillable_fields.append(
                     {
                         "label": label,
+                        "display_label": display_label,
                         "profile_key": mapping.get("profile_key"),
                         "field_type": mapping.get("field_type"),
                         "value": value,
@@ -312,12 +396,30 @@ class EasyApplyAnalyzer:
                 )
             elif mapping["field_type"] in {"unknown", "free_text"}:
                 status = "unknown"
-                if label:
-                    unknown_fields.append(label)
+                unknown_fields.append(
+                    {
+                        "label": label,
+                        "display_label": display_label,
+                        "field_type": mapping.get("field_type"),
+                        "options": options,
+                    }
+                )
             elif field.get("required"):
                 status = "missing"
                 if label:
-                    missing_fields.append(label)
+                    profile_key = mapping.get("profile_key")
+                    env_var = None
+                    if profile_key:
+                        env_var = ENV_VAR_MAPPING.get(profile_key)
+                        if not env_var:
+                            for skill, evar in profile.SKILL_ENV_KEYS.items():
+                                if evar == profile_key:
+                                    env_var = evar
+                                    break
+                    if env_var:
+                        missing_fields.append(f"{display_label} (missing in .env: {env_var})")
+                    else:
+                        missing_fields.append(display_label)
 
             analyzed = FormField(
                 label=label,

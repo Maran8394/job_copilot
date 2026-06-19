@@ -21,7 +21,7 @@ def send_message(text):
     except Exception as e:
         print(f"Failed to send message: {e}")
 
-def send_job(job_id, title, company, location, posted, url, apply_type, analysis):
+def send_job(job_id, title, company, location, posted, url, apply_type, analysis, platform="linkedin"):
     """Send job notification to Telegram."""
     summary = "\n".join([f"• {point}" for point in analysis.get("summary", [])[:3]])
     concerns = analysis.get("concerns", [])
@@ -35,6 +35,7 @@ def send_job(job_id, title, company, location, posted, url, apply_type, analysis
 
 💼 <b>{title}</b>
 🏢 {company}
+🌐 {platform.title()}
 
 📍 {location}
 🕒 {posted}
@@ -70,15 +71,30 @@ def send_job(job_id, title, company, location, posted, url, apply_type, analysis
         print(f"Failed to send job: {e}")
 
 
+def _format_field_item(item):
+    """Render a field entry from either a string or analyzer dict."""
+    if isinstance(item, dict):
+        label = item.get("display_label") or item.get("label") or item.get("name") or item.get("field_type") or "Unknown"
+        field_type = item.get("field_type")
+        value = item.get("value")
+        if value not in (None, ""):
+            return f"{label}: {value}"
+        if field_type:
+            return f"{label} ({field_type})"
+        return str(label)
+
+    return str(item)
+
+
 def send_form_analysis(job_id, summary):
     """Send Easy Apply form analysis to Telegram."""
     missing_fields = summary.get("missing_fields", [])
     fillable_fields = summary.get("fillable_fields", [])
     unknown_fields = summary.get("unknown_fields", [])
 
-    missing_text = "\n".join([f"{idx + 1}. {escape(field)}" for idx, field in enumerate(missing_fields)]) or "None"
-    fillable_text = "\n".join([f"{idx + 1}. {escape(field)}" for idx, field in enumerate(fillable_fields)]) or "None"
-    unknown_text = "\n".join([f"{idx + 1}. {escape(field)}" for idx, field in enumerate(unknown_fields)]) or "None"
+    missing_text = "\n".join([f"{idx + 1}. {escape(_format_field_item(field))}" for idx, field in enumerate(missing_fields)]) or "None"
+    fillable_text = "\n".join([f"{idx + 1}. {escape(_format_field_item(field))}" for idx, field in enumerate(fillable_fields)]) or "None"
+    unknown_text = "\n".join([f"{idx + 1}. {escape(_format_field_item(field))}" for idx, field in enumerate(unknown_fields)]) or "None"
 
     text = (
         f"🧾 <b>Easy Apply Form Analysis</b>\n\n"

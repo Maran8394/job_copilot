@@ -1,0 +1,911 @@
+import os
+import random
+import re
+import threading
+import time
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import urljoin, urlsplit
+import subprocess
+
+from playwright.sync_api import Error, TimeoutError as PlaywrightTimeout, sync_playwright
+
+from apply import _apply_fields, _find_button
+from candidate_profile import load_candidate_profile
+from easy_apply_analyzer import EasyApplyAnalyzer
+from llm import analyze_job
+from storage import jobs_store, load_jobs, save_jobs
+from telegram_bot import send_form_analysis, send_job, send_message
+
+
+JOBSTREET_BASE_URL = "https://my.jobstreet.com"
+JOBSTREET_EMAIL = os.getenv("JOBSTREET_EMAIL") or os.getenv("EMAIL")
+JOBSTREET_PASSWORD = os.getenv("JOBSTREET_PASSWORD")
+OTP_WAIT_SECONDS = int(os.getenv("JOBSTREET_OTP_WAIT_SECONDS", "300"))
+AUTOFILL_THRESHOLD = 0.82
+
+_otp_event = threading.Event()
+_otp_lock = threading.Lock()
+_profile_access_lock = threading.Lock()
+_pending_otp = None
+
+
+def human_like_delay(min_ms=700, max_ms=2200):
+    time.sleep(random.uniform(min_ms, max_ms) / 1000)
+
+
+def _browser_profile_dir():
+    path = Path("browser_profile") / "jobstreet"
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
+
+
+def _cleanup_stale_profile_lock():
+    """Remove Chrome singleton lock files when no JobStreet browser is using the profile."""
+    profile_dir = Path(_browser_profile_dir())
+    lock_files = [
+        profile_dir / "SingletonLock",
+        profile_dir / "SingletonCookie",
+        profile_dir / "SingletonSocket",
+    ]
+
+    try:
+        proc = subprocess.run(
+            ["ps", "-axo", "pid=,args="],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        active = any(
+            "browser_profile/jobstreet" in line or str(profile_dir) in line
+            for line in proc.stdout.splitlines()
+        )
+    except Exception:
+        active = True
+
+    if active:
+        return
+
+    for lock_file in lock_files:
+        try:
+            if lock_file.exists():
+                lock_file.unlink()
+        except Exception:
+            pass
+
+
+def _launch_context(p):
+    launch_args = {
+        "user_data_dir": _browser_profile_dir(),
+        "headless": False,
+        "slow_mo": random.randint(200, 500),
+        "args": [
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--disable-background-networking",
+            "--disable-background-timer-throttling",
+            "--disable-renderer-backgrounding",
+            f"--window-size={random.randint(1200, 1400)},{random.randint(800, 1000)}",
+        ],
+    }
+
+    chrome_paths = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    ]
+    for path in chrome_paths:
+        if os.path.exists(path):
+            launch_args["executable_path"] = path
+            break
+
+    return p.chromium.launch_persistent_context(**launch_args)
+
+
+def _normalize_text(value):
+    return re.sub(r"[^a-z0-9]+", "_", str(value).strip().lower()).strip("_")
+
+
+def _parse_posted_time(posted_text):
+    posted_lower = str(posted_text).lower()
+    if "minute" in posted_lower or "min" in posted_lower:
+        return 0
+    if "hour" in posted_lower or "hr" in posted_lower:
+        match = re.search(r"(\d+)", posted_lower)
+        return int(match.group(1)) if match else 1
+    if "day" in posted_lower or "d ago" in posted_lower:
+        match = re.search(r"(\d+)", posted_lower)
+        return int(match.group(1)) * 24 if match else 24
+    if "week" in posted_lower:
+        match = re.search(r"(\d+)", posted_lower)
+        return int(match.group(1)) * 24 * 7 if match else 24 * 7
+    if "month" in posted_lower:
+        return 24 * 30
+    return 999
+
+
+def get_jobstreet_job_key(job):
+    """Create a stable key for a JobStreet posting."""
+    url = str(job.get("url", "")).strip()
+    title = _normalize_text(job.get("title", ""))
+    company = _normalize_text(job.get("company", ""))
+    location = _normalize_text(job.get("location", ""))
+
+    if url:
+        try:
+            parsed = urlsplit(url)
+            clean_url = parsed._replace(query="", fragment="").geturl()
+            return f"jobstreet:{clean_url}"
+        except Exception:
+            pass
+
+    return f"jobstreet:fallback:{title}:{company}:{location}"
+
+
+def get_search_url(keywords="AI Engineer", location="Kuala Lumpur, Malaysia"):
+    keyword_slug = re.sub(r"[^a-z0-9]+", "-", keywords.strip().lower()).strip("-")
+    location_parts = [part.strip() for part in str(location).split(",") if part.strip()]
+    if len(location_parts) > 1 and location_parts[-1].lower() == "malaysia":
+        location_value = location_parts[0]
+    else:
+        location_value = str(location).strip()
+    location_slug = re.sub(r"[^a-z0-9]+", "-", location_value.lower()).strip("-")
+    if location_slug == "malaysia":
+        return f"{JOBSTREET_BASE_URL}/{keyword_slug}-jobs"
+    return f"{JOBSTREET_BASE_URL}/{keyword_slug}-jobs/in-{location_slug}"
+
+
+def submit_jobstreet_otp(code):
+    """Receive an OTP from Telegram and wake any waiting JobStreet login."""
+    global _pending_otp
+    with _otp_lock:
+        _pending_otp = str(code).strip()
+        _otp_event.set()
+
+
+def _wait_for_jobstreet_otp(page):
+    global _pending_otp
+    send_message(
+        "🔐 JobStreet login needs the email OTP.\n"
+        "Reply with:\n"
+        "/jobstreet_otp_<code>"
+    )
+
+    if not _otp_event.wait(timeout=OTP_WAIT_SECONDS):
+        return None
+
+    with _otp_lock:
+        code = _pending_otp
+        _pending_otp = None
+        _otp_event.clear()
+        return code
+
+
+def _fill_first_visible(page, selectors, value):
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            count = locator.count()
+            for idx in range(count):
+                item = locator.nth(idx)
+                if item.is_visible():
+                    item.fill(str(value))
+                    return True
+        except Exception:
+            continue
+    return False
+
+
+def _click_first_visible(page, selectors):
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            count = locator.count()
+            for idx in range(count):
+                item = locator.nth(idx)
+                if item.is_visible():
+                    item.click()
+                    return True
+        except Exception:
+            continue
+    return False
+
+
+def _click_first_visible_without_text(page, selectors, blocked_texts):
+    blocked = [str(text).strip().lower() for text in blocked_texts if str(text).strip()]
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            count = locator.count()
+            for idx in range(count):
+                item = locator.nth(idx)
+                if not item.is_visible():
+                    continue
+                candidate_text = ""
+                try:
+                    candidate_text = (item.inner_text(timeout=1000) or item.get_attribute("aria-label") or item.get_attribute("title") or "").strip().lower()
+                except Exception:
+                    candidate_text = ""
+                if any(text in candidate_text for text in blocked):
+                    continue
+                item.click()
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _click_first_visible_with_text(page, selectors, desired_texts, blocked_texts=None):
+    desired = [str(text).strip().lower() for text in desired_texts if str(text).strip()]
+    blocked = [str(text).strip().lower() for text in (blocked_texts or []) if str(text).strip()]
+
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            count = locator.count()
+            for idx in range(count):
+                item = locator.nth(idx)
+                if not item.is_visible():
+                    continue
+                candidate_text = ""
+                try:
+                    candidate_text = (
+                        item.inner_text(timeout=1000)
+                        or item.get_attribute("aria-label")
+                        or item.get_attribute("title")
+                        or ""
+                    ).strip().lower()
+                except Exception:
+                    candidate_text = ""
+
+                if blocked and any(text in candidate_text for text in blocked):
+                    continue
+                if desired and not any(text in candidate_text for text in desired):
+                    continue
+                item.click()
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _page_text(page):
+    try:
+        return page.locator("body").inner_text(timeout=5000)
+    except Exception:
+        return ""
+
+
+def _safe_goto(page, url, timeout=45000):
+    """Navigate while tolerating JobStreet redirects and aborted transitions."""
+    try:
+        page.goto(url, wait_until="commit", timeout=timeout)
+    except Exception as exc:
+        message = str(exc)
+        if "ERR_ABORTED" not in message and "Navigation to" not in message:
+            raise
+
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=timeout)
+    except Exception:
+        pass
+
+    return page.url
+
+
+def _looks_logged_out(page):
+    text = _page_text(page).lower()
+    url = page.url.lower()
+    if "sign in" in text and "settings" not in text:
+        return True
+    if "login" in url or "signin" in url:
+        return True
+    return False
+
+
+def _ensure_jobstreet_login(page):
+    """Reuse an existing JobStreet session or walk through OTP login."""
+    try:
+        _safe_goto(page, f"{JOBSTREET_BASE_URL}/settings/", timeout=45000)
+        human_like_delay(1000, 2000)
+        if not _looks_logged_out(page):
+            return True
+    except Exception:
+        pass
+
+    if not JOBSTREET_EMAIL:
+        send_message(
+            "⚠️ JobStreet login needs an email address.\n"
+            "Set `JOBSTREET_EMAIL` or `EMAIL` in your environment."
+        )
+        return False
+
+    try:
+        _safe_goto(page, JOBSTREET_BASE_URL, timeout=45000)
+        human_like_delay(1200, 2500)
+
+        _click_first_visible_with_text(
+            page,
+            [
+                "a",
+                "button",
+                "[role='button']",
+            ],
+            ["continue with email", "continue email", "email"],
+            ["google", "continue with google", "sign in with google"],
+        )
+        human_like_delay(1000, 1800)
+
+        email_selectors = [
+            "input#emailAddress[name='emailAddress_seekanz'][type='email']",
+            "input#emailAddress[name='emailAddress_seekanz']",
+            "input[type='email'][name='emailAddress_seekanz']",
+            "input[type='email'][id='emailAddress']",
+            "input[autocomplete='seekanz username']",
+            "input[autocomplete='email']",
+            "input[name*='emailAddress' i]",
+            "input[name*='email' i]",
+            "input[placeholder*='email' i]",
+        ]
+
+        email_filled = _fill_first_visible(
+            page,
+            email_selectors,
+            JOBSTREET_EMAIL,
+        )
+
+        if not email_filled:
+            _click_first_visible_without_text(
+                page,
+                [
+                    "a",
+                    "button",
+                    "[role='button']",
+                ],
+                ["google", "continue with google", "sign in with google"],
+            )
+            human_like_delay(1000, 1800)
+            email_filled = _fill_first_visible(page, email_selectors, JOBSTREET_EMAIL)
+
+        if email_filled:
+            _click_first_visible_without_text(
+                page,
+                [
+                    "button:has-text('Continue')",
+                    "button:has-text('Next')",
+                    "button:has-text('Send code')",
+                    "button[data-cy='login']",
+                    "button:has-text('Email me a sign in code')",
+                    "button:has-text('Sign in')",
+                    "button:has-text('Login')",
+                    "button[type='submit']",
+                    "a:has-text('Continue with Email')",
+                ],
+                ["google", "continue with google", "sign in with google"],
+            )
+            human_like_delay(1500, 2500)
+
+        password_fields = [
+            "input[type='password']",
+            "input[autocomplete='current-password']",
+            "input[name*='password' i]",
+        ]
+        if JOBSTREET_PASSWORD and _fill_first_visible(page, password_fields, JOBSTREET_PASSWORD):
+            _click_first_visible(
+                page,
+                [
+                    "button:has-text('Continue')",
+                    "button:has-text('Next')",
+                    "button:has-text('Sign in')",
+                    "button:has-text('Login')",
+                ],
+            )
+            human_like_delay(1500, 2500)
+
+        if _looks_logged_out(page):
+            otp = _wait_for_jobstreet_otp(page)
+            if not otp:
+                send_message("❌ JobStreet OTP timed out. Login paused.")
+                return False
+
+            otp_filled = _fill_first_visible(
+                page,
+                [
+                    "input[autocomplete='one-time-code']",
+                    "input[name*='otp' i]",
+                    "input[name*='code' i]",
+                    "input[type='tel']",
+                    "input[type='text']",
+                ],
+                otp,
+            )
+
+            if not otp_filled:
+                send_message("❌ Could not find the JobStreet OTP input.")
+                return False
+
+            _click_first_visible(
+                page,
+                [
+                    "button:has-text('Verify')",
+                    "button:has-text('Continue')",
+                    "button:has-text('Submit')",
+                    "button:has-text('Sign in')",
+                ],
+            )
+            human_like_delay(2000, 3000)
+
+        return not _looks_logged_out(page)
+    except Exception as exc:
+        send_message(f"❌ JobStreet login failed: {str(exc)[:160]}")
+        return False
+
+
+def _extract_cards(page):
+    """Extract a best-effort list of JobStreet cards from the search page."""
+    candidates = []
+    seen_urls = set()
+
+    try:
+        anchors = page.locator("a[href*='/job/'], a[href*='jobstreet.com']")
+        count = min(anchors.count(), 120)
+        for idx in range(count):
+            anchor = anchors.nth(idx)
+            try:
+                href = anchor.get_attribute("href") or ""
+                if not href:
+                    continue
+                url = urljoin(JOBSTREET_BASE_URL, href)
+                if url in seen_urls:
+                    continue
+
+                text = ""
+                try:
+                    text = anchor.evaluate(
+                        """el => {
+                          const parent = el.closest('article, li, div') || el;
+                          return (parent.innerText || el.innerText || '').trim();
+                        }"""
+                    )
+                except Exception:
+                    text = anchor.inner_text(timeout=1000)
+
+                lines = [line.strip() for line in str(text).splitlines() if line.strip()]
+                if not lines:
+                    continue
+
+                title = lines[0]
+                if title.lower() in {"sign in", "jobstreet"}:
+                    continue
+
+                company = "Unknown"
+                location = "Unknown"
+                posted = "Unknown"
+
+                for line in lines[1:6]:
+                    if company == "Unknown":
+                        company_match = re.search(r"\bat\s+(.+)", line, re.I)
+                        if company_match:
+                            company = company_match.group(1).strip()
+                            continue
+                    if location == "Unknown" and any(ch.isalpha() for ch in line) and not any(token in line.lower() for token in ["rm", "listed", "ago", "full time", "contract", "temp"]):
+                        location = line
+                        continue
+                    if posted == "Unknown" and re.search(r"(listed|ago|expiring|days? ago|hours? ago|today)", line, re.I):
+                        posted = line
+
+                description = " ".join(lines[1:]) if len(lines) > 1 else title
+                apply_type = "JobStreet Apply"
+                posted_hours = _parse_posted_time(posted)
+
+                candidates.append(
+                    {
+                        "platform": "jobstreet",
+                        "title": title,
+                        "company": company,
+                        "location": location,
+                        "posted": posted,
+                        "posted_hours": posted_hours,
+                        "url": url,
+                        "apply_type": apply_type,
+                        "description": description,
+                        "scraped_at": datetime.now().isoformat(),
+                    }
+                )
+                seen_urls.add(url)
+            except Exception:
+                continue
+    except Exception:
+        return []
+
+    return candidates
+
+
+def _rank_jobs(jobs_data):
+    scored_jobs = []
+    for job in jobs_data:
+        analysis = job.get("analysis", {})
+        fit_score = analysis.get("fit_score", 0)
+        posted_hours = job.get("posted_hours", 999)
+        recency_score = max(0, 100 - (posted_hours * 2))
+        composite_score = (fit_score * 0.75) + (recency_score * 0.25)
+        scored_jobs.append({**job, "composite_score": round(composite_score, 1), "recency_score": recency_score})
+
+    scored_jobs.sort(key=lambda x: x["composite_score"], reverse=True)
+    return scored_jobs
+
+
+def search_jobs(keywords="AI Engineer", location="Kuala Lumpur, Malaysia", max_jobs=10):
+    search_url = get_search_url(keywords, location)
+
+    with _profile_access_lock:
+        _cleanup_stale_profile_lock()
+
+        with sync_playwright() as p:
+            browser = None
+            all_jobs = []
+
+            def handle_route(route):
+                try:
+                    if route.request.resource_type in ["image", "font", "media", "stylesheet"]:
+                        route.abort()
+                    else:
+                        route.continue_()
+                except Error:
+                    pass
+
+            try:
+                browser = _launch_context(p)
+                page = browser.new_page()
+                page.route("**/*", handle_route)
+
+                page.add_init_script(
+                    """
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                    window.chrome = { runtime: {} };
+                """
+                )
+
+                if not _ensure_jobstreet_login(page):
+                    return []
+
+                print(f"\n🔍 [{datetime.now().strftime('%Y-%m-%d %H:%M')}] Searching JobStreet: {keywords} in {location}")
+                _safe_goto(page, search_url, timeout=45000)
+                human_like_delay(3000, 5000)
+
+                if _looks_logged_out(page):
+                    if not _ensure_jobstreet_login(page):
+                        return []
+                    _safe_goto(page, search_url, timeout=45000)
+                    human_like_delay(2000, 4000)
+
+                page.mouse.wheel(0, 2400)
+                human_like_delay(1000, 1500)
+                page.mouse.wheel(0, 2400)
+                human_like_delay(1000, 1500)
+
+                jobs = _extract_cards(page)
+                if not jobs:
+                    print("No JobStreet jobs found.")
+                    return []
+
+                for job in jobs[: max_jobs * 2]:
+                    description = job.get("description", "")
+                    if not description:
+                        continue
+                    try:
+                        analysis = analyze_job(description)
+                    except Exception:
+                        analysis = {}
+                    if not analysis:
+                        continue
+                    job["analysis"] = analysis
+                    all_jobs.append(job)
+
+            except Exception as e:
+                print(f"JobStreet browser error: {e}")
+            finally:
+                if browser is not None:
+                    browser.close()
+
+        print(f"\n📊 Ranking {len(all_jobs)} JobStreet jobs...")
+        ranked_jobs = _rank_jobs(all_jobs)
+        top_jobs = ranked_jobs[:max_jobs]
+
+        existing = load_jobs()
+        existing_jobs = []
+        existing_keys = set()
+        max_id = 0
+
+        for idx, job in enumerate(existing, 1):
+            job["platform"] = str(job.get("platform") or "linkedin").lower()
+            if job["platform"] == "jobstreet":
+                job_key = job.get("job_key") or get_jobstreet_job_key(job)
+            else:
+                job_key = job.get("job_key")
+            if job_key:
+                job["job_key"] = job_key
+            if job_key in existing_keys:
+                continue
+            if "id" not in job or not isinstance(job["id"], int):
+                job["id"] = idx
+            max_id = max(max_id, job["id"])
+            existing_keys.add(job_key or f"legacy:{job['id']}")
+            existing_jobs.append(job)
+
+        sent_count = 0
+        for rank, job in enumerate(top_jobs, 1):
+            job_key = get_jobstreet_job_key(job)
+            job["job_key"] = job_key
+            if job_key in existing_keys:
+                print(f"  [{rank}] ⏭️ Already sent: {job['title']}")
+                continue
+
+            analysis = job["analysis"]
+            composite = job.get("composite_score", 0)
+            print(f"  [{rank}] ⭐ {job['title']} @ {job['company']} (Score: {composite})")
+
+            analysis["rank"] = rank
+            analysis["composite_score"] = composite
+
+            max_id += 1
+            job_id = max_id
+            job["id"] = job_id
+            job["platform"] = "jobstreet"
+
+            send_job(
+                job_id,
+                job["title"],
+                job["company"],
+                job["location"],
+                job["posted"],
+                job["url"],
+                job["apply_type"],
+                analysis,
+                platform="jobstreet",
+            )
+
+            jobs_store[f"jobstreet:{job_id}"] = job
+            existing_keys.add(job_key)
+            existing_jobs.append(job)
+            sent_count += 1
+
+        save_jobs(existing_jobs)
+        print(f"📁 Total stored jobs: {len(existing_jobs)}")
+        return top_jobs
+
+
+def _is_already_applied(page):
+    text = _page_text(page).lower()
+    markers = [
+        "already applied",
+        "application submitted",
+        "view application",
+        "applied",
+        "resume received",
+    ]
+    if any(marker in text for marker in markers):
+        return True
+    try:
+        if page.locator("text=Applied").count() > 0:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _find_job_apply_button(page):
+    selectors = [
+        "button:has-text('Apply now')",
+        "button:has-text('Apply')",
+        "a:has-text('Apply now')",
+        "a:has-text('Apply')",
+        "[role='button']:has-text('Apply')",
+    ]
+    for selector in selectors:
+        try:
+            locator = page.locator(selector)
+            count = locator.count()
+            for idx in range(count):
+                item = locator.nth(idx)
+                if item.is_visible():
+                    return item
+        except Exception:
+            continue
+    return None
+
+
+def _handle_form_application(page, job_data, job_id=None):
+    analyzer = EasyApplyAnalyzer()
+    profile = load_candidate_profile()
+    job_key = job_id if job_id is not None else job_data.get("id")
+
+    max_steps = 6
+    step = 0
+    last_summary = None
+
+    while step < max_steps:
+        step += 1
+        human_like_delay(700, 1500)
+
+        summary = analyzer.analyze(page, job_data)
+        summary["scope_selector"] = analyzer.find_scope_selector(page)
+        last_summary = summary
+
+        if job_key is not None:
+            profile.store_pending_application(job_key, summary)
+
+        autofilled = _apply_fields(page, summary)
+        print(f"[JOBSTREET AUTOFILL] Filled {autofilled} field(s)")
+
+        post_fill_summary = analyzer.analyze(page, job_data)
+        post_fill_summary["scope_selector"] = analyzer.find_scope_selector(page)
+        last_summary = post_fill_summary
+        if job_key is not None:
+            profile.store_pending_application(job_key, post_fill_summary)
+
+        if post_fill_summary.get("missing_fields"):
+            send_form_analysis(job_key or job_data.get("title", "job"), post_fill_summary)
+            return {
+                "success": False,
+                "status": "needs_answers",
+                "message": "Missing fields detected; waiting for user answers",
+                "summary": post_fill_summary,
+            }
+
+        submit_btn = _find_button(page, ["Submit application", "Send application", "Submit"], post_fill_summary["scope_selector"])
+        if submit_btn is not None:
+            try:
+                submit_btn.click()
+                human_like_delay(1500, 3000)
+                done_btn = _find_button(page, ["Done", "Dismiss", "Return to job search"])
+                if done_btn is not None:
+                    done_btn.click()
+                    human_like_delay(1000, 1800)
+            except Exception as exc:
+                print(f"[JOBSTREET] submit click error: {exc}")
+
+            return {
+                "success": True,
+                "status": "submitted",
+                "message": "Application submitted automatically",
+                "summary": post_fill_summary,
+            }
+
+        review_btn = _find_button(page, ["Review"], post_fill_summary["scope_selector"])
+        next_btn = _find_button(page, ["Next"], post_fill_summary["scope_selector"])
+
+        if review_btn is not None:
+            review_btn.click()
+            human_like_delay(1000, 2000)
+            continue
+
+        if next_btn is not None:
+            next_btn.click()
+            human_like_delay(1000, 2000)
+            continue
+
+        break
+
+    if last_summary is not None:
+        send_form_analysis(job_key or job_data.get("title", "job"), last_summary)
+
+    return {
+        "success": True,
+        "status": "ready_for_review",
+        "message": "Form prepared for manual submission",
+        "summary": last_summary,
+    }
+
+
+def apply_to_job(job_data, job_id=None):
+    """Inspect and prepare a JobStreet application."""
+    if not job_data:
+        return {
+            "success": False,
+            "status": "error",
+            "message": "No job data provided",
+        }
+
+    with _profile_access_lock:
+        _cleanup_stale_profile_lock()
+
+        with sync_playwright() as p:
+            browser = None
+            try:
+                browser = _launch_context(p)
+                page = browser.new_page()
+
+                page.add_init_script(
+                    """
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                """
+                )
+
+                if not _ensure_jobstreet_login(page):
+                    return {
+                        "success": False,
+                        "status": "error",
+                        "message": "JobStreet login could not be completed",
+                    }
+
+                print(f"  Navigating to JobStreet job: {job_data['url']}")
+                try:
+                    _safe_goto(page, job_data["url"], timeout=45000)
+                except PlaywrightTimeout:
+                    print("  [JOBSTREET] Page load timed out, continuing with current DOM")
+                human_like_delay(2500, 4500)
+
+                if _looks_logged_out(page):
+                    if not _ensure_jobstreet_login(page):
+                        return {
+                            "success": False,
+                            "status": "error",
+                            "message": "JobStreet session expired and login failed",
+                        }
+                    _safe_goto(page, job_data["url"], timeout=45000)
+                    human_like_delay(2000, 3500)
+
+                if _is_already_applied(page) or bool(job_data.get("applied") or job_data.get("status") == "submitted"):
+                    return {
+                        "success": False,
+                        "status": "already_applied",
+                        "message": "JobStreet says the job is already applied",
+                    }
+
+                apply_btn = _find_job_apply_button(page)
+                if apply_btn is None:
+                    return {
+                        "success": False,
+                        "status": "unsupported",
+                        "message": "JobStreet apply button not found",
+                    }
+
+                apply_btn.click()
+                human_like_delay(1500, 3000)
+
+                if _is_already_applied(page):
+                    return {
+                        "success": False,
+                        "status": "already_applied",
+                        "message": "JobStreet says the job is already applied",
+                    }
+
+                if page.locator("form").count() > 0 or page.locator(".jobs-easy-apply-content").count() > 0:
+                    result = _handle_form_application(page, job_data, job_id=job_id)
+                    if result.get("status") == "submitted":
+                        return result
+                    return result
+
+                if "application" in page.url.lower() or page.locator("button:has-text('Submit')").count() > 0:
+                    result = _handle_form_application(page, job_data, job_id=job_id)
+                    if result.get("status") == "submitted":
+                        return result
+                    return result
+
+                return {
+                    "success": True,
+                    "status": "ready_for_review",
+                    "message": "Application started, but manual review is required",
+                }
+
+            except Exception as exc:
+                return {
+                    "success": False,
+                    "status": "error",
+                    "message": f"Error during JobStreet apply: {exc}",
+                }
+            finally:
+                if browser:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+
+
+if __name__ == "__main__":
+    search_jobs()

@@ -69,7 +69,18 @@ def _match_boolean_question(text: str, phrases: Iterable[str]) -> bool:
 
 def map_field(label: str, placeholder: str = "", field_type: str = "", options: Optional[Iterable[str]] = None) -> Dict[str, Any]:
     """Classify a field label and map it to a candidate profile value."""
-    raw = " ".join(part for part in [label or "", placeholder or "", " ".join(options or [])] if part)
+    option_texts = []
+    for option in options or []:
+        if isinstance(option, dict):
+            text = option.get("label") or option.get("value") or option.get("text") or ""
+            if text:
+                option_texts.append(str(text).strip())
+        else:
+            text = str(option).strip()
+            if text:
+                option_texts.append(text)
+
+    raw = " ".join(part for part in [label or "", placeholder or "", " ".join(option_texts)] if part)
     text = normalize_text(raw)
     mapped: Dict[str, Any] = {
         "field_type": "unknown",
@@ -81,7 +92,7 @@ def map_field(label: str, placeholder: str = "", field_type: str = "", options: 
     if not text:
         return mapped
 
-    boolean_options = {normalize_text(option) for option in (options or [])}
+    boolean_options = {normalize_text(option) for option in option_texts}
     has_yes_no = {"yes", "no"}.issubset(boolean_options)
 
     direct_patterns = [
